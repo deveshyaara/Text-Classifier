@@ -1,0 +1,150 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+sdist/
+wheels/
+*.whl
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ── Environment / secrets — NEVER commit ──────────────────────────────────────
+.env
+.env.*
+!.env.example          # keep example files as templates
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ── TensorFlow / Keras model artifacts ────────────────────────────────────────
+# Re-generate via:  python training/train.py
+backend/models/*.keras
+backend/models/*.h5
+backend/models/*.pb
+backend/models/saved_model/
+backend/models/variables/
+
+# ── TensorFlow Hub & dataset caches ───────────────────────────────────────────
+/tensorflow_datasets/
+~/tensorflow_datasets/
+tfhub_modules/
+/tfhub_modules/
+
+# ── Training outputs ───────────────────────────────────────────────────────────
+training/training_history.json
+training/__pycache__/
+
+# ── Node / Next.js ─────────────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/.swc/
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Next.js build artefacts ────────────────────────────────────────────────────
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts   # auto-generated — do not edit
+
+# ── Testing ────────────────────────────────────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ── Typing / mypy ──────────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# ── Linting / formatting ───────────────────────────────────────────────────────
+.ruff_cache/
+.eslintcache
+
+# ── Logs ───────────────────────────────────────────────────────────────────────
+*.log
+logs/
+*.log.*
+
+# ── Jupyter / IPython ──────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# ── Docker ─────────────────────────────────────────────────────────────────────
+# (keep Dockerfile and docker-compose.yml — exclude only generated files)
+.docker/
+docker-compose.override.yml
+
+# ── IDE / editor ───────────────────────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json   # keep recommended extensions list
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# ── OS artefacts ───────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Misc ───────────────────────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+.vercel/
+.netlify/

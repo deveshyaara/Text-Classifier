@@ -1,0 +1,29 @@
+# docker-compose.yml — Run backend locally without manual venv setup
+# Usage: docker compose up --build
+#
+# Note: Requires backend/models/sentiment_model.keras to exist.
+# Generate it first: cd training && python train.py
+
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - FRONTEND_URL=http://localhost:3000
+      - MODEL_PATH=./models/sentiment_model.keras
+      - MAX_TEXT_LENGTH=10000
+    volumes:
+      # Mount model artifact from host so you don't rebuild the image after retraining
+      - ./backend/models:/app/models:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
