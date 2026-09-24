@@ -37,11 +37,7 @@ frontend/.env.*.local
 
 # ── TensorFlow / Keras model artifacts ────────────────────────────────────────
 # Re-generate via:  python training/train.py
-backend/models/*.keras
-backend/models/*.h5
-backend/models/*.pb
-backend/models/saved_model/
-backend/models/variables/
+
 
 # ── TensorFlow Hub & dataset caches ───────────────────────────────────────────
 /tensorflow_datasets/
