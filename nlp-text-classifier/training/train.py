@@ -25,7 +25,7 @@ import tensorflow_hub as hub
 import tensorflow_datasets as tfds
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-SAVE_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "models", "sentiment_model.keras")
+SAVE_PATH = os.path.join(os.path.dirname(__file__), "..", "backend", "models", "sentiment_model")
 HISTORY_PATH = os.path.join(os.path.dirname(__file__), "training_history.json")
 
 # ── Embedding URL (exactly as in notebook) ───────────────────────────────────
@@ -95,9 +95,13 @@ def evaluate(model, test_data):
 
 
 def save_model(model):
-    os.makedirs(os.path.dirname(SAVE_PATH), exist_ok=True)
-    model.save(SAVE_PATH)
-    print(f"\nModel saved to: {SAVE_PATH}")
+    # Use SavedModel format (directory), NOT .keras format.
+    # The .keras v3 format breaks TF-Hub KerasLayer weight restoration when
+    # trainable=True — the hub module is re-downloaded fresh and variable counts
+    # don't match. SavedModel bundles hub weights inline and loads reliably.
+    os.makedirs(SAVE_PATH, exist_ok=True)
+    tf.saved_model.save(model, SAVE_PATH)
+    print(f"\nModel saved to: {SAVE_PATH}/")
 
 
 def save_history(history):

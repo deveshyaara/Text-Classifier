@@ -34,7 +34,7 @@ USER appuser
 
 # Environment defaults (override via docker run -e or docker-compose)
 ENV FRONTEND_URL=http://localhost:3000
-ENV MODEL_PATH=./models/sentiment_model.keras
+ENV MODEL_PATH=./models/sentiment_model
 ENV MAX_TEXT_LENGTH=10000
 
 EXPOSE 8000

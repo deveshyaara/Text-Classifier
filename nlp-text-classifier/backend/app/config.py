@@ -18,7 +18,8 @@ class Settings:
     # Model path — relative to this file's directory
     MODEL_PATH: str = os.environ.get(
         "MODEL_PATH",
-        os.path.join(os.path.dirname(__file__), "..", "models", "sentiment_model.keras"),
+        # SavedModel directory — NOT .keras file (see model.py for why)
+        os.path.join(os.path.dirname(__file__), "..", "models", "sentiment_model"),
     )
 
     # CORS
