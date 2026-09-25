@@ -1,47 +1,41 @@
 """
 main.py — FastAPI application entry point.
 
-Endpoints:
-  GET  /          — API info
-  GET  /health    — Health check (reflects real model state)
-  POST /predict   — Run sentiment inference
-
-Model is loaded ONCE in the lifespan startup handler.
+AI Model Lab API.
+Supports dynamic loading of multiple models via a unified Model Registry.
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import model as ml
 from app.config import settings
 from app.logging_config import get_logger, setup_logging
-from app.preprocessing import preprocess
-from app.schemas import (
-    HealthResponse,
-    PredictRequest,
-    PredictResponse,
-    Probabilities,
-    RootResponse,
-)
+from app.registry.registry import ModelRegistry
+from app.routes import models as models_router
+from app.routes import predict as predict_router
+from app.schemas import HealthResponse, RootResponse
 
 setup_logging()
 logger = get_logger(__name__)
 
 
-# ── Lifespan: load model once on startup ─────────────────────────────────────
+# ── Lifespan: load models once on startup ────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting up NLP Text Classifier API …")
-    try:
-        ml.load_model()
-    except Exception as exc:
-        logger.error("Model failed to load: %s", exc)
-        # App still starts — /health will report model_loaded=false
+    logger.info("Starting up AI Model Lab API …")
+    
+    # Initialize registry and attach to app state
+    registry = ModelRegistry()
+    app.state.registry = registry
+    
+    # Try to load all registered models
+    registry.load_all()
+    
     yield
-    logger.info("Shutting down.")
+    logger.info("Shutting down AI Model Lab API.")
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -77,7 +71,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# ── Routes ───────────────────────────────────────────────────────────────────
+# ── Base Routes ───────────────────────────────────────────────────────────────
 
 @app.get(
     "/",
@@ -97,52 +91,17 @@ def root():
     "/health",
     response_model=HealthResponse,
     summary="Health check",
-    description="Returns API health and whether the ML model is loaded.",
+    description="Returns API health and whether AT LEAST ONE ML model is loaded.",
 )
-def health():
+def health(request: Request):
+    registry = request.app.state.registry
     return HealthResponse(
         status="healthy",
-        model_loaded=ml.is_loaded(),
+        model_loaded=registry.any_loaded(),
+        # We can add full status dict later if needed
     )
 
+# ── Mount Feature Routers ─────────────────────────────────────────────────────
 
-@app.post(
-    "/predict",
-    response_model=PredictResponse,
-    summary="Predict sentiment",
-    description=(
-        "Classify a movie review as **positive** or **negative** using the "
-        "TensorFlow / TF Hub sentiment model. "
-        "Returns the predicted label, confidence score, full probability "
-        "breakdown, and measured inference latency."
-    ),
-)
-def predict(request: PredictRequest):
-    if not ml.is_loaded():
-        raise HTTPException(
-            status_code=503,
-            detail="Model is not available. Please try again later.",
-        )
-
-    try:
-        clean_text = preprocess(request.text)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-
-    try:
-        result = ml.predict(clean_text)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-    except Exception as exc:
-        logger.error("Inference error: %s", exc)
-        raise HTTPException(
-            status_code=500,
-            detail="Inference failed. Please try again.",
-        )
-
-    return PredictResponse(
-        prediction=result["prediction"],
-        confidence=result["confidence"],
-        probabilities=Probabilities(**result["probabilities"]),
-        inference_time_ms=result["inference_time_ms"],
-    )
+app.include_router(models_router.router)
+app.include_router(predict_router.router)

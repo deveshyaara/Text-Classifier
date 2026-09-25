@@ -8,18 +8,23 @@ from typing import List
 
 class Settings:
     # API
-    APP_NAME: str = "NLP Text Classifier"
-    APP_VERSION: str = "1.0.0"
+    APP_NAME: str = "AI Model Lab API"
+    APP_VERSION: str = "2.0.0"
     APP_DESCRIPTION: str = (
-        "Binary sentiment classifier using TensorFlow + TensorFlow Hub. "
-        "Trained on IMDb movie reviews."
+        "Unified inference backend for the AI Model Lab. "
+        "Supports multiple models including NLP Sentiment and Vision Transformer."
     )
 
-    # Model path — relative to this file's directory
+    # Model paths — relative to this file's directory
     MODEL_PATH: str = os.environ.get(
         "MODEL_PATH",
-        # SavedModel directory — NOT .keras file (see model.py for why)
+        # SavedModel directory — NOT .keras file
         os.path.join(os.path.dirname(__file__), "..", "models", "sentiment_model"),
+    )
+    
+    VIT_MODEL_PATH: str = os.environ.get(
+        "VIT_MODEL_PATH",
+        os.path.join(os.path.dirname(__file__), "..", "models", "vit_model.keras"),
     )
 
     # CORS

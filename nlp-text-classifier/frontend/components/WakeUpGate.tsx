@@ -28,22 +28,25 @@ export default function WakeUpGate({ children }: { children: React.ReactNode }) 
 
     // Health poller
     const poll = async () => {
+      const waited = Date.now() - startRef.current;
+      if (waited > MAX_WAIT_MS) {
+        clearIntervals();
+        setPhase("error");
+        return;
+      }
+
       try {
         const res  = await fetch(`${API_URL}/health`, { cache: "no-store" });
-        if (!res.ok) return;                    // non-200 → still waking
-        const data = await res.json();
-        if (data.model_loaded === true) {
+        if (res.ok) {
+          // If the backend responds with 200 OK, it's awake!
+          // We don't strictly need model_loaded === true, because the UI
+          // handles unavailable models gracefully now.
           clearIntervals();
           setFadeOut(true);
           setTimeout(() => setPhase("ready"), TRANSITION_MS);
         }
       } catch {
         // network error → backend still sleeping, keep polling
-        const waited = Date.now() - startRef.current;
-        if (waited > MAX_WAIT_MS) {
-          clearIntervals();
-          setPhase("error");
-        }
       }
     };
 
@@ -70,21 +73,22 @@ export default function WakeUpGate({ children }: { children: React.ReactNode }) 
     }, 1000);
 
     const poll = async () => {
+      const waited = Date.now() - startRef.current;
+      if (waited > MAX_WAIT_MS) {
+        clearIntervals();
+        setPhase("error");
+        return;
+      }
+
       try {
         const res  = await fetch(`${API_URL}/health`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.model_loaded === true) {
+        if (res.ok) {
           clearIntervals();
           setFadeOut(true);
           setTimeout(() => setPhase("ready"), TRANSITION_MS);
         }
       } catch {
-        const waited = Date.now() - startRef.current;
-        if (waited > MAX_WAIT_MS) {
-          clearIntervals();
-          setPhase("error");
-        }
+        // keep polling
       }
     };
     poll();

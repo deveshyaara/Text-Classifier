@@ -1,10 +1,10 @@
 // components/PredictionResult.tsx
 "use client";
 
-import { PredictResponse } from "@/lib/api";
+import { NLPPredictResponse } from "@/lib/api";
 
 interface Props {
-  result: PredictResponse;
+  result: NLPPredictResponse;
 }
 
 function BarFill({ value, color }: { value: number; color: string }) {

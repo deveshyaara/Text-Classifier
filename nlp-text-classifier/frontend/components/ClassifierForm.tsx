@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { predict, PredictResponse, APIError } from "@/lib/api";
+import { predictNLP, NLPPredictResponse, APIError } from "@/lib/api";
 import PredictionResult from "./PredictionResult";
 
 const EXAMPLES = [
@@ -19,7 +19,7 @@ const MAX_CHARS = 10000;
 export default function ClassifierForm() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PredictResponse | null>(null);
+  const [result, setResult] = useState<NLPPredictResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,7 +30,7 @@ export default function ClassifierForm() {
     setError(null);
 
     try {
-      const res = await predict(text);
+      const res = await predictNLP(text);
       setResult(res);
     } catch (err) {
       if (err instanceof APIError) {
