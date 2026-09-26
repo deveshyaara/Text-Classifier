@@ -1,20 +1,25 @@
 """
-conftest.py — pytest configuration.
+conftest.py — pytest configuration for the AI Model Lab API.
 
-Patches out tensorflow so tests run without TF installed.
-The model is mocked in individual test files.
+Mocks out heavy dependencies (TensorFlow, Keras, Pillow) so all tests
+run quickly in CI without needing GPU/TF installed.
 """
 
 import sys
 from unittest.mock import MagicMock
 
-# Mock tensorflow and tensorflow_hub before any app imports
-# This allows tests to run in CI without TF installed
+# ── Mock TensorFlow / Keras / Pillow before any app imports ──────────────────
+
+keras_mock = MagicMock()
 tf_mock = MagicMock()
-tf_mock.keras.models.load_model = MagicMock()
-tf_mock.sigmoid = MagicMock(return_value=MagicMock(numpy=lambda: 0.96))
+tf_mock.keras = keras_mock
+
+pillow_mock = MagicMock()
 
 sys.modules.setdefault("tensorflow", tf_mock)
-sys.modules.setdefault("tensorflow.keras", tf_mock.keras)
+sys.modules.setdefault("tensorflow.keras", keras_mock)
 sys.modules.setdefault("tensorflow_hub", MagicMock())
+sys.modules.setdefault("keras", keras_mock)
+sys.modules.setdefault("PIL", pillow_mock)
+sys.modules.setdefault("PIL.Image", pillow_mock.Image)
 sys.modules.setdefault("numpy", __import__("numpy"))

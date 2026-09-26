@@ -1,7 +1,7 @@
 """
 adapters/vit.py — Vision Transformer (CIFAR-10) adapter.
 
-Verified model details from Vision_Transformer.ipynb (executable cells only):
+Model details (from Vision_Transformer.ipynb):
   Dataset        : CIFAR-10 (tf.keras.datasets.cifar10)
   Input shape    : 32×32×3
   Resize to      : 72×72
@@ -11,15 +11,12 @@ Verified model details from Vision_Transformer.ipynb (executable cells only):
   Attention heads    : 4
   Transformer units  : [128, 64]
   MLP head units     : [2048, 1024]
-  Dropout (attn/MLP) : 0.1
-  Dropout (head)     : 0.5
-  Augmentation   : Normalization, Resize(72,72), RandomFlip, RandomRotation(0.02), RandomZoom(0.2)
-  Optimizer      : AdamW (tensorflow_addons) lr=0.001, wd=0.0001
+  Dropout (attn/MLP) : 0.1 / 0.5
   Loss           : SparseCategoricalCrossentropy(from_logits=True)
-  Epochs         : 50  |  Batch: 256  |  Val split: 10%
   Test accuracy  : 81.78%
   Top-5 accuracy : 99.06%
-  Classes        : airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck
+  Classes        : airplane, automobile, bird, cat, deer,
+                   dog, frog, horse, ship, truck
 """
 
 import io
@@ -32,17 +29,19 @@ from app.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# CIFAR-10 class names — exact order from the dataset
+# ── CIFAR-10 labels ───────────────────────────────────────────────────────────
+
 CIFAR10_CLASSES: List[str] = [
     "airplane", "automobile", "bird", "cat", "deer",
     "dog", "frog", "horse", "ship", "truck",
 ]
 
-# Inference image dimensions (model input after resize in augmentation layer)
-IMAGE_SIZE = 72   # model resizes internally; we send 32×32 normalised
-INPUT_SIZE = 32   # CIFAR-10 native resolution
+INPUT_SIZE = 32   # Native CIFAR-10 resolution fed into the model
+
+# ── Optional heavy deps ───────────────────────────────────────────────────────
 
 try:
+    import keras
     import numpy as np
     import tensorflow as tf
     from PIL import Image as PILImage
@@ -50,6 +49,66 @@ try:
 except ImportError:
     _DEPS_AVAILABLE = False
 
+# ── Custom Keras layers (must be registered BEFORE load_model is called) ──────
+#
+# These replicate the exact layer definitions used during training.
+# The @register_keras_serializable decorator lets Keras resolve the class
+# by name when deserialising the .keras archive.
+
+if _DEPS_AVAILABLE:
+
+    @keras.saving.register_keras_serializable(package="vit")
+    class Patches(tf.keras.layers.Layer):
+        """Split an image into non-overlapping (patch_size × patch_size) patches."""
+
+        def __init__(self, patch_size: int, **kwargs):
+            super().__init__(**kwargs)
+            self.patch_size = patch_size
+
+        def call(self, images):
+            batch_size = tf.shape(images)[0]
+            patches = tf.image.extract_patches(
+                images=images,
+                sizes=[1, self.patch_size, self.patch_size, 1],
+                strides=[1, self.patch_size, self.patch_size, 1],
+                rates=[1, 1, 1, 1],
+                padding="VALID",
+            )
+            patch_dims = patches.shape[-1]
+            return tf.reshape(patches, [batch_size, -1, patch_dims])
+
+        def get_config(self) -> Dict[str, Any]:
+            config = super().get_config()
+            config.update({"patch_size": self.patch_size})
+            return config
+
+    @keras.saving.register_keras_serializable(package="vit")
+    class PatchEncoder(tf.keras.layers.Layer):
+        """Linearly project patches + add learnable position embeddings."""
+
+        def __init__(self, num_patches: int, projection_dim: int, **kwargs):
+            super().__init__(**kwargs)
+            self.num_patches = num_patches
+            self.projection_dim = projection_dim
+            self.projection = tf.keras.layers.Dense(units=projection_dim)
+            self.position_embedding = tf.keras.layers.Embedding(
+                input_dim=num_patches, output_dim=projection_dim
+            )
+
+        def call(self, patch):
+            positions = tf.range(start=0, limit=self.num_patches, delta=1)
+            return self.projection(patch) + self.position_embedding(positions)
+
+        def get_config(self) -> Dict[str, Any]:
+            config = super().get_config()
+            config.update({
+                "num_patches": self.num_patches,
+                "projection_dim": self.projection_dim,
+            })
+            return config
+
+
+# ── Adapter ───────────────────────────────────────────────────────────────────
 
 class ViTAdapter(BaseModelAdapter):
     """Adapter for the CIFAR-10 Vision Transformer Keras model."""
@@ -78,9 +137,9 @@ class ViTAdapter(BaseModelAdapter):
         logger.info("Loading ViT model from %s …", path)
         if not _DEPS_AVAILABLE:
             raise RuntimeError("TensorFlow / Pillow not installed.")
-        # Load as SavedModel directory (saved with tf.saved_model.save or model.save())
+        # Patches and PatchEncoder are registered above; Keras can resolve them.
         self._model = tf.keras.models.load_model(path)
-        # Warm-up pass with a dummy 32×32×3 image
+        # Warm-up pass
         try:
             dummy = np.zeros((1, INPUT_SIZE, INPUT_SIZE, 3), dtype=np.float32)
             _ = self._model(dummy, training=False)
@@ -95,18 +154,18 @@ class ViTAdapter(BaseModelAdapter):
 
     def predict(self, payload: Any) -> Dict[str, Any]:
         """
-        payload: bytes — raw image file bytes (PNG / JPG / WEBP)
-        Returns unified dict compatible with ViTPredictResponse.
+        payload: bytes — raw image file bytes (PNG / JPG / WEBP / GIF)
+        Returns a dict compatible with ViTPredictResponse.
         """
         if not self.is_loaded():
             raise RuntimeError("ViT model is not loaded.")
 
-        # Decode image → numpy array (32×32×3, uint8)
+        # Decode image → (1, 32, 32, 3) float32 numpy array
         try:
             img = PILImage.open(io.BytesIO(payload)).convert("RGB")
             img = img.resize((INPUT_SIZE, INPUT_SIZE), PILImage.LANCZOS)
-            arr = np.array(img, dtype=np.float32)          # (32,32,3)
-            batch = np.expand_dims(arr, axis=0)            # (1,32,32,3)
+            arr = np.array(img, dtype=np.float32)   # (32, 32, 3)
+            batch = np.expand_dims(arr, axis=0)      # (1, 32, 32, 3)
         except Exception as exc:
             raise ValueError(f"Invalid image: {exc}") from exc
 
@@ -118,7 +177,7 @@ class ViTAdapter(BaseModelAdapter):
 
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
-        # Softmax to get probabilities
+        # Numerically stable softmax
         exp_logits = np.exp(logits - np.max(logits))
         probs = exp_logits / exp_logits.sum()
 
@@ -151,7 +210,7 @@ class ViTAdapter(BaseModelAdapter):
             "id": self.model_id,
             "name": self.display_name,
             "type": self.model_type,
-            "framework": "TensorFlow 2",
+            "framework": "TensorFlow 2 / Keras",
             "status": "live" if self.is_loaded() else "unavailable",
             "dataset": "CIFAR-10",
             "task": "10-class image classification",
@@ -163,10 +222,10 @@ class ViTAdapter(BaseModelAdapter):
                     {"name": "Data Augmentation", "detail": "Normalize → Resize 72×72 → RandomFlip → RandomRotation(0.02) → RandomZoom(0.2)"},
                     {"name": "Patch Extraction", "detail": "6×6 patches → 144 patches per image"},
                     {"name": "Patch Encoding", "detail": "Linear projection to dim=64 + learnable positional embedding"},
-                    {"name": "Transformer Encoder ×8", "detail": "LayerNorm → MultiHeadAttention(heads=4, dim=64, dropout=0.1) → Add → LayerNorm → MLP[128,64] → Add"},
+                    {"name": "Transformer Encoder ×8", "detail": "LayerNorm → MultiHeadAttention(heads=4, key_dim=64, dropout=0.1) → Add → LayerNorm → MLP[128,64] → Add"},
                     {"name": "LayerNorm + Flatten + Dropout(0.5)", "detail": "Representation layer"},
                     {"name": "MLP Head", "detail": "[2048, 1024] with GELU + Dropout(0.5)"},
-                    {"name": "Dense(10)", "detail": "Logit output, 10 CIFAR-10 classes"},
+                    {"name": "Dense(10)", "detail": "Raw logit output — 10 CIFAR-10 classes"},
                 ],
             },
             "metrics": {
@@ -174,7 +233,7 @@ class ViTAdapter(BaseModelAdapter):
                 "top5_accuracy": 0.9906,
             },
             "training": {
-                "optimizer": "AdamW (tensorflow_addons)",
+                "optimizer": "AdamW",
                 "learning_rate": 0.001,
                 "weight_decay": 0.0001,
                 "loss": "SparseCategoricalCrossentropy(from_logits=True)",

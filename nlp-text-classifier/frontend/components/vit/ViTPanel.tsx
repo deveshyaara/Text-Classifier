@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { predictViT, ViTPredictResponse } from "@/lib/api";
 import { UploadCloud, Image as ImageIcon, Loader2, Info } from "lucide-react";
+import ViTTrainingCurves from "./ViTTrainingCurves";
 
 export default function ViTPanel() {
   const [file, setFile] = useState<File | null>(null);
@@ -129,6 +130,11 @@ export default function ViTPanel() {
           </div>
         </div>
       )}
+      
+      {/* Training Curves Section */}
+      <div className="mt-8">
+        <ViTTrainingCurves />
+      </div>
     </div>
   );
 }
