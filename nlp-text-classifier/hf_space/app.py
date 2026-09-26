@@ -1,23 +1,9 @@
-import io
-import time
-import os
+import gradio as gr
 import numpy as np
 import tensorflow as tf
-from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image as PILImage
 import keras
-
-app = FastAPI()
-
-# Open CORS to allow Render to call it
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+import time
 
 INPUT_SIZE = 32
 CIFAR10_CLASSES = [
@@ -72,42 +58,27 @@ class PatchEncoder(tf.keras.layers.Layer):
         return config
 
 
-# Global model reference
-model = None
+print("Loading ViT model...")
+model = tf.keras.models.load_model("vit_model.keras")
+print("ViT model loaded.")
 
-@app.on_event("startup")
-def load_model():
-    global model
-    print("Loading ViT model...")
-    # HF Spaces usually put the root files in /code or current working directory
-    model = tf.keras.models.load_model("vit_model.keras")
-    print("ViT model loaded.")
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "model_loaded": model is not None}
-
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    if not model:
-        return {"error": "Model not loaded"}
-
-    contents = await file.read()
-    try:
-        img = PILImage.open(io.BytesIO(contents)).convert("RGB")
-        img = img.resize((INPUT_SIZE, INPUT_SIZE), PILImage.LANCZOS)
-        arr = np.array(img, dtype=np.float32)
-        batch = np.expand_dims(arr, axis=0)
-    except Exception as e:
-        return {"error": f"Invalid image format: {str(e)}"}
-
+def predict(img):
+    if img is None:
+        return {"error": "No image provided"}
+        
+    img = img.convert("RGB")
+    img = img.resize((INPUT_SIZE, INPUT_SIZE), PILImage.LANCZOS)
+    arr = np.array(img, dtype=np.float32)
+    batch = np.expand_dims(arr, axis=0)
+    
     t0 = time.perf_counter()
     logits = model(batch, training=False).numpy()[0]
     elapsed_ms = (time.perf_counter() - t0) * 1000
-
+    
     exp_logits = np.exp(logits - np.max(logits))
     probs = exp_logits / exp_logits.sum()
-
+    
     top_indices = np.argsort(probs)[::-1][:5].tolist()
     top_predictions = [
         {"class": CIFAR10_CLASSES[i], "probability": float(probs[i])}
@@ -124,15 +95,15 @@ async def predict(file: UploadFile = File(...)):
         "inference_time_ms": round(elapsed_ms, 2)
     }
 
-import gradio as gr
-
-# Mount a dummy Gradio app to satisfy Hugging Face's Gradio SDK
+# Create standard Gradio interface
 demo = gr.Interface(
-    fn=lambda: "Vision Transformer API is running. Send POST to /predict",
-    inputs=[],
-    outputs="text",
-    title="ViT CIFAR-10 API"
+    fn=predict,
+    inputs=gr.Image(type="pil"),
+    outputs=gr.JSON(),
+    title="ViT CIFAR-10 Model API",
+    description="Backend microservice for AI Model Lab."
 )
 
-# Hugging Face expects the main object to be named 'app'
-app = gr.mount_gradio_app(app, demo, path="/")
+if __name__ == "__main__":
+    demo.launch()
+

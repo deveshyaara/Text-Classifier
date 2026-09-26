@@ -21,7 +21,8 @@ Model details (from Vision_Transformer.ipynb):
 
 import io
 import time
-import httpx
+import tempfile
+import os
 from typing import Any, Dict, List, Optional
 
 from app.adapters.base import BaseModelAdapter
@@ -173,19 +174,27 @@ class ViTAdapter(BaseModelAdapter):
         # ── 1. Proxy to Hugging Face Space ────────────────────────────────────
         if self._model == "hf_space_proxy":
             t0 = time.perf_counter()
+            tmp_path = None
             try:
-                # The payload is bytes, so we can send it directly as a file upload
-                files = {'file': ('image.jpg', payload, 'image/jpeg')}
-                response = httpx.post(f"{settings.HF_SPACE_URL}/predict", files=files, timeout=30.0)
-                response.raise_for_status()
-                data = response.json()
+                from gradio_client import Client, handle_file
                 
-                # Add Render tracking metrics
+                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                    tmp.write(payload)
+                    tmp_path = tmp.name
+                    
+                client = Client(settings.HF_SPACE_URL)
+                data = client.predict(handle_file(tmp_path), api_name="/predict")
+                
+                # Cleanup temp file
+                os.remove(tmp_path)
+                tmp_path = None
+                
                 data["model_id"] = self.model_id
-                # Replace the HF inference time with the total round-trip time
                 data["inference_time_ms"] = round((time.perf_counter() - t0) * 1000, 2)
                 return data
             except Exception as exc:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
                 raise RuntimeError(f"Hugging Face Space inference failed: {exc}") from exc
 
         # ── 2. Local Inference ────────────────────────────────────────────────
