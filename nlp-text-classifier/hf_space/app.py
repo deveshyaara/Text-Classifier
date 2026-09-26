@@ -4,6 +4,7 @@ import tensorflow as tf
 from PIL import Image as PILImage
 import keras
 import time
+import spaces
 
 INPUT_SIZE = 32
 CIFAR10_CLASSES = [
@@ -63,6 +64,7 @@ model = tf.keras.models.load_model("vit_model.keras")
 print("ViT model loaded.")
 
 
+@spaces.GPU
 def predict(img):
     if img is None:
         return {"error": "No image provided"}
