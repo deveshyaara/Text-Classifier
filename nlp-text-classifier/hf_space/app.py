@@ -124,7 +124,15 @@ async def predict(file: UploadFile = File(...)):
         "inference_time_ms": round(elapsed_ms, 2)
     }
 
-if __name__ == "__main__":
-    import uvicorn
-    # Hugging Face Spaces expects the server to listen on port 7860
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+import gradio as gr
+
+# Mount a dummy Gradio app to satisfy Hugging Face's Gradio SDK
+demo = gr.Interface(
+    fn=lambda: "Vision Transformer API is running. Send POST to /predict",
+    inputs=[],
+    outputs="text",
+    title="ViT CIFAR-10 API"
+)
+
+# Hugging Face expects the main object to be named 'app'
+app = gr.mount_gradio_app(app, demo, path="/")
