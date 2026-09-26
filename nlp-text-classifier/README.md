@@ -146,10 +146,10 @@ Set `ENABLE_VIT=false` in your Render Environment Variables. The NLP model will 
 
 **Option B (Hugging Face Microservice):**
 Host the massive ViT model on a free Hugging Face Space (which provides 16GB RAM) and let Render proxy the requests!
-1. Create a new "Docker" Space on [Hugging Face](https://huggingface.co/spaces).
-2. Upload the 3 files located in the `hf_space/` directory of this repository (`app.py`, `Dockerfile`, `requirements.txt`).
+1. Create a new **Gradio** Space on [Hugging Face](https://huggingface.co/spaces) (this is the free tier).
+2. Upload the 2 files located in the `hf_space/` directory of this repository (`app.py`, `requirements.txt`). *(You don't need the Dockerfile).*
 3. Upload your `vit_model.keras` into the same Hugging Face Space.
-4. Once your Space is "Running", copy its Direct URL (e.g., `https://your-username-space.hf.space`).
+4. Once your Space is "Running", copy its Direct URL. You can find this by clicking the 3 dots (...) in the top right and selecting "Embed this Space". The URL looks like `https://your-username-space.hf.space`.
 5. In your Render Dashboard, add the Environment Variable `HF_SPACE_URL` and paste the URL.
 6. Make sure `ENABLE_VIT=true`. 
 

@@ -123,3 +123,8 @@ async def predict(file: UploadFile = File(...)):
         "all_probabilities": {cls: float(probs[i]) for i, cls in enumerate(CIFAR10_CLASSES)},
         "inference_time_ms": round(elapsed_ms, 2)
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    # Hugging Face Spaces expects the server to listen on port 7860
+    uvicorn.run(app, host="0.0.0.0", port=7860)
