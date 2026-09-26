@@ -21,6 +21,7 @@ Model details (from Vision_Transformer.ipynb):
 
 import io
 import time
+import httpx
 from typing import Any, Dict, List, Optional
 
 from app.adapters.base import BaseModelAdapter
@@ -133,6 +134,11 @@ class ViTAdapter(BaseModelAdapter):
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def load(self) -> None:
+        if settings.HF_SPACE_URL:
+            logger.info("ViT model configured to use remote Hugging Face Space: %s", settings.HF_SPACE_URL)
+            self._model = "hf_space_proxy"
+            return
+            
         if not settings.ENABLE_VIT:
             logger.warning("ViT model loading disabled via ENABLE_VIT=false (useful for low-RAM environments like Render Free Tier).")
             return
@@ -163,7 +169,26 @@ class ViTAdapter(BaseModelAdapter):
         """
         if not self.is_loaded():
             raise RuntimeError("ViT model is not loaded.")
+            
+        # ── 1. Proxy to Hugging Face Space ────────────────────────────────────
+        if self._model == "hf_space_proxy":
+            t0 = time.perf_counter()
+            try:
+                # The payload is bytes, so we can send it directly as a file upload
+                files = {'file': ('image.jpg', payload, 'image/jpeg')}
+                response = httpx.post(f"{settings.HF_SPACE_URL}/predict", files=files, timeout=30.0)
+                response.raise_for_status()
+                data = response.json()
+                
+                # Add Render tracking metrics
+                data["model_id"] = self.model_id
+                # Replace the HF inference time with the total round-trip time
+                data["inference_time_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+                return data
+            except Exception as exc:
+                raise RuntimeError(f"Hugging Face Space inference failed: {exc}") from exc
 
+        # ── 2. Local Inference ────────────────────────────────────────────────
         # Decode image → (1, 32, 32, 3) float32 numpy array
         try:
             img = PILImage.open(io.BytesIO(payload)).convert("RGB")

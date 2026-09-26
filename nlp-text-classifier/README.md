@@ -136,6 +136,32 @@ By default, the ViT model tab will show as **Unavailable** if `models/vit_model.
 
 ---
 
+## Deployment
+
+### 1. Render (FastAPI Backend)
+Because Render's Free Tier limits RAM to 512MB, loading the 260MB Vision Transformer will cause an Out-Of-Memory (OOM) crash. The backend is configured to support two modes to bypass this:
+
+**Option A (Skip ViT):** 
+Set `ENABLE_VIT=false` in your Render Environment Variables. The NLP model will work perfectly, and the ViT model will be safely ignored.
+
+**Option B (Hugging Face Microservice):**
+Host the massive ViT model on a free Hugging Face Space (which provides 16GB RAM) and let Render proxy the requests!
+1. Create a new "Docker" Space on [Hugging Face](https://huggingface.co/spaces).
+2. Upload the 3 files located in the `hf_space/` directory of this repository (`app.py`, `Dockerfile`, `requirements.txt`).
+3. Upload your `vit_model.keras` into the same Hugging Face Space.
+4. Once your Space is "Running", copy its Direct URL (e.g., `https://your-username-space.hf.space`).
+5. In your Render Dashboard, add the Environment Variable `HF_SPACE_URL` and paste the URL.
+6. Make sure `ENABLE_VIT=true`. 
+
+Render will now seamlessly forward all image classifications to Hugging Face!
+
+### 2. Vercel (Next.js Frontend)
+1. Import your GitHub repository to Vercel.
+2. Set the `NEXT_PUBLIC_API_URL` environment variable to your Render deployment URL.
+3. Deploy!
+
+---
+
 ## Docker
 
 ### Build and run the backend

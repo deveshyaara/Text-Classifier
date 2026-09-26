@@ -27,6 +27,9 @@ class Settings:
         os.path.join(os.path.dirname(__file__), "..", "models", "vit_model.keras"),
     )
     
+    # Hugging Face Space URL (e.g. "https://your-username-space-name.hf.space")
+    HF_SPACE_URL: str = os.environ.get("HF_SPACE_URL", "").rstrip("/")
+    
     # Toggle to disable ViT model on memory-constrained environments (like Render Free Tier)
     ENABLE_VIT: bool = os.environ.get("ENABLE_VIT", "true").lower() == "true"
 
