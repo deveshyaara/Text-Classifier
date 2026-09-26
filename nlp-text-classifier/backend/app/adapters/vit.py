@@ -133,6 +133,10 @@ class ViTAdapter(BaseModelAdapter):
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def load(self) -> None:
+        if not settings.ENABLE_VIT:
+            logger.warning("ViT model loading disabled via ENABLE_VIT=false (useful for low-RAM environments like Render Free Tier).")
+            return
+
         path = settings.VIT_MODEL_PATH
         logger.info("Loading ViT model from %s …", path)
         if not _DEPS_AVAILABLE:

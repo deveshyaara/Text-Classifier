@@ -26,6 +26,9 @@ class Settings:
         "VIT_MODEL_PATH",
         os.path.join(os.path.dirname(__file__), "..", "models", "vit_model.keras"),
     )
+    
+    # Toggle to disable ViT model on memory-constrained environments (like Render Free Tier)
+    ENABLE_VIT: bool = os.environ.get("ENABLE_VIT", "true").lower() == "true"
 
     # CORS
     FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://localhost:3000")
