@@ -26,6 +26,9 @@ The application has been upgraded from a single NLP classifier into a Multi-Mode
 
 ## Architecture
 
+[![AI Model Lab Architecture](architecture.png)](architecture.html)
+*(Click the image to explore the interactive architecture diagram)*
+
 The backend utilizes an **Adapter/Registry Pattern** to dynamically route inference requests to the appropriate loaded model. If a model weight file is missing on disk, the backend gracefully marks it as `unavailable` without crashing.
 
 ```
@@ -149,8 +152,8 @@ Host the massive ViT model on a free Hugging Face Space (which provides 16GB RAM
 1. Create a new **Gradio** Space on [Hugging Face](https://huggingface.co/spaces) (this is the free tier).
 2. Upload the 2 files located in the `hf_space/` directory of this repository (`app.py`, `requirements.txt`). *(You don't need the Dockerfile).*
 3. Upload your `vit_model.keras` into the same Hugging Face Space.
-4. Once your Space is "Running", copy its Direct URL. You can find this by clicking the 3 dots (...) in the top right and selecting "Embed this Space". The URL looks like `https://your-username-space.hf.space`.
-5. In your Render Dashboard, add the Environment Variable `HF_SPACE_URL` and paste the URL.
+4. Once your Space is "Running", note its Space ID (e.g., `username/space-name`).
+5. In your Render Dashboard, add the Environment Variable `HF_SPACE_URL` and paste the exact Space ID (e.g., `deveshcodes/vit-cifar10`). Do NOT paste the full URL.
 6. Make sure `ENABLE_VIT=true`. 
 
 Render will now seamlessly forward all image classifications to Hugging Face!
